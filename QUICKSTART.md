@@ -1,6 +1,6 @@
 # Eval receipts in one sitting
 
-Use Python 3.10 or newer. Get the private registry URL and key from your eval team's operator first. The registry is private; your machine must already have access to its private network. Keep your existing JSONL or CSV results file on your machine.
+Use Python 3.10 or newer. Get the registry URL and key from your eval team's operator first. Connect over HTTPS; receipt pages stay private behind the key. Keep your existing JSONL or CSV results file on your machine.
 
 **1. Install and connect once**
 
@@ -35,4 +35,4 @@ Optional pre-registration: `receipt seed --suite suite.jsonl --model NAME --grad
 
 Optional weights identity: add `--weights-fingerprint MODEL=SHA256` to both seed and eval. The fingerprint is visible on the private receipt and checked against its ledger entry. Only the fingerprint is shared.
 
-Install the wheel above without Git, or use the source at tag `v0.1.1`. Release files and checksums are on the [v0.1.1 release](https://github.com/marino129/eval-receipts-kit/releases/tag/v0.1.1). The private network and registry key are prerequisites, supplied by your eval team's operator. Version 0.1.1 also verifies unchanged 0.1.0 receipts.
+Install the wheel above without Git, or use the source at tag `v0.1.1`. Release files and checksums are on the [v0.1.1 release](https://github.com/marino129/eval-receipts-kit/releases/tag/v0.1.1). The registry URL and key are prerequisites, supplied by your eval team's operator. Version 0.1.1 also verifies unchanged 0.1.0 receipts.
