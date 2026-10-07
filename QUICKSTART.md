@@ -6,7 +6,7 @@ Use Python 3.10 or newer. Get the private registry URL and key from your eval te
 
 ```sh
 python3 -m venv .receipt-env
-.receipt-env/bin/python -m pip install "https://github.com/marino129/eval-receipts-kit/releases/download/v0.1.0/creationloop_eval_receipts-0.1.0-py3-none-any.whl"
+.receipt-env/bin/python -m pip install "https://github.com/marino129/eval-receipts-kit/releases/download/v0.1.1/creationloop_eval_receipts-0.1.1-py3-none-any.whl"
 .receipt-env/bin/receipt login PRIVATE_REGISTRY_URL
 ```
 
@@ -33,4 +33,6 @@ The first command checks the local root and aggregate, the private ledger entry 
 
 Optional pre-registration: `receipt seed --suite suite.jsonl --model NAME --grader NAME --out seed-1`, then `receipt eval results.jsonl --seed-file seed-1/seed.json --model NAME --grader NAME`. Suites need only id and input. Pass the same local JSON `--config FILE` to both commands. Unsettled seeds expire after 24 hours and remain visible as abandoned. Repeated suite/model runs from this installation retain a stable salted suite commitment and receive increasing run numbers.
 
-Install the wheel above without Git, or use the source at tag `v0.1.0`. Release files and checksums are on the [v0.1.0 release](https://github.com/marino129/eval-receipts-kit/releases/tag/v0.1.0). The private network and registry key are prerequisites, supplied by your eval team's operator.
+Optional weights identity: add `--weights-fingerprint MODEL=SHA256` to both seed and eval. The fingerprint is visible on the private receipt and checked against its ledger entry. Only the fingerprint is shared.
+
+Install the wheel above without Git, or use the source at tag `v0.1.1`. Release files and checksums are on the [v0.1.1 release](https://github.com/marino129/eval-receipts-kit/releases/tag/v0.1.1). The private network and registry key are prerequisites, supplied by your eval team's operator. Version 0.1.1 also verifies unchanged 0.1.0 receipts.

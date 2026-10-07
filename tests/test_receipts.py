@@ -10,6 +10,7 @@ from pathlib import Path
 from unittest.mock import patch
 from eval_receipts import core
 from eval_receipts.cli import verify_local
+from eval_receipts import cli as receipt_cli
 from eval_receipts.timestamp import deserialize, serialize, verify_timestamp
 from eval_receipts.transport import registry_url
 
@@ -134,6 +135,43 @@ class LocalCLI(unittest.TestCase):
         receipt=self.build()
         self.assertEqual(self.cli('verify',str(receipt)).returncode,1)
         self.assertEqual(self.cli('verify',str(receipt),'--offline','--require-confirmed').returncode,1)
+    def test_model_fingerprint_roundtrip_allowlist_and_privacy(self):
+        digest='ab'*32
+        p=self.cli('eval',str(self.file),'--offline','--demo','--weights-fingerprint','demo='+digest,
+                   '--out',str(self.root/'fingerprint'))
+        self.assertEqual(p.returncode,0,p.stderr)
+        receipt=self.root/'fingerprint/receipt.json';value=json.loads(receipt.read_text())
+        self.assertEqual(value['payload']['run_metadata']['model_fingerprints'],{'demo':digest})
+        self.assertEqual(self.cli('verify',str(receipt),'--offline').returncode,0)
+        wire=(receipt.parent/'payload.json').read_text()
+        self.assertNotIn('LOCAL_ONLY_',wire);self.assertNotIn('salt',wire)
+        for flag in ['demo=not-a-hash','other='+digest,'demo='+digest+'=input']:
+            self.assertEqual(self.cli('eval',str(self.file),'--offline','--weights-fingerprint',flag).returncode,1)
+        p=self.cli('eval',str(self.file),'--offline','--weights-fingerprint','demo='+digest,
+                   '--weights-fingerprint','demo='+digest)
+        self.assertEqual(p.returncode,1)
+        value['payload']['run_metadata']['model_fingerprints']['demo']='cd'*32
+        with self.assertRaises(core.InvalidReceipt):verify_local(receipt,value)
+    def test_online_fingerprint_tamper_cannot_hide_by_changing_local_copy(self):
+        p=self.cli('eval',str(self.file),'--offline','--demo','--weights-fingerprint','demo='+'ab'*32,
+                   '--out',str(self.root/'online-fingerprint'))
+        self.assertEqual(p.returncode,0,p.stderr)
+        path=self.root/'online-fingerprint/receipt.json';value=json.loads(path.read_text())
+        payload=copy.deepcopy(value['payload']);sid=core.series_id(payload)
+        entry={'segment':'eval-receipts-v1','sequence':1,'previous_hash':'0'*64,'at':core.now(),
+               'event':'settle','run_id':payload['run_id'],'series_id':sid,'run_number':1,'payload':payload}
+        entry['hash']=core.entry_hash(entry)
+        reg={'entry_hash':entry['hash'],'run_number':1,'series_id':sid}
+        value.update(registry='https://private.example/eval',registration=reg)
+        value['payload']['run_metadata']['model_fingerprints']['demo']='cd'*32
+        value['local']['model_fingerprints']['demo']='cd'*32
+        path.write_text(json.dumps(value))
+        current={**reg,'root':payload['root']}
+        args=receipt_cli.parser().parse_args(['verify',str(path)])
+        with (patch('eval_receipts.cli.settings',return_value=(value['registry'],'TEST_TOKEN')),
+              patch('eval_receipts.cli.api',side_effect=[current,{'entries':[entry]}])):
+            with self.assertRaisesRegex(core.InvalidReceipt,'Ledger payload differs'):
+                receipt_cli.verify(args)
 
 
 class TimestampBinding(unittest.TestCase):

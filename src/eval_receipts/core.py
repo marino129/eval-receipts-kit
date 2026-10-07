@@ -274,11 +274,18 @@ def validate_payload(p, kind="settle"):
         for v in p[k]: name(v)
         require(p[k] == sorted(set(p[k])), "Names must be unique and sorted")
     m = p["run_metadata"]
-    require(isinstance(m, dict) and set(m) == {"created_at", "demo", "tool_version", "benchmark_hash"},
-            "Run metadata accepts only timestamp, demo, tool version, benchmark hash")
+    fields = {"created_at", "demo", "tool_version", "benchmark_hash"}
+    require(isinstance(m, dict) and (set(m) == fields or set(m) == fields | {"model_fingerprints"}),
+            "Run metadata accepts only timestamp, demo, tool version, benchmark hash and model fingerprints")
     parse_time(m["created_at"])
-    require(type(m["demo"]) is bool and m["tool_version"] == "0.1.0", "Invalid run metadata")
+    require(type(m["demo"]) is bool and m["tool_version"] in ("0.1.0", "0.1.1"), "Invalid run metadata")
     if m["benchmark_hash"] is not None: hash_hex(m["benchmark_hash"])
+    if "model_fingerprints" in m:
+        require(m["tool_version"] == "0.1.1", "Model fingerprints require tool version 0.1.1")
+        fingerprints = m["model_fingerprints"]
+        require(isinstance(fingerprints, dict) and 0 < len(fingerprints) <= len(p["models"]) and
+                set(fingerprints) <= set(p["models"]), "Fingerprints must name models in this run")
+        for digest in fingerprints.values(): hash_hex(digest)
     if kind == "settle":
         hash_hex(p["root"])
         validate_summary(p["summary"])

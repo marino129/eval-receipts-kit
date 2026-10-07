@@ -73,9 +73,21 @@ def config_commit(args, salt=None):
     return digest, salt
 
 
+def fingerprints(args):
+    result = {}
+    for value in getattr(args, "weights_fingerprint", None) or []:
+        model, separator, digest = value.rpartition("=")
+        require(separator and model and model not in result, "Use one MODEL=SHA256 fingerprint per model")
+        result[name(model)] = hash_hex(digest)
+    return dict(sorted(result.items()))
+
+
 def metadata(args):
-    return {"created_at": now(), "demo": args.demo, "tool_version": __version__,
-            "benchmark_hash": hash_hex(args.benchmark_hash) if args.benchmark_hash else None}
+    result = {"created_at": now(), "demo": args.demo, "tool_version": __version__,
+              "benchmark_hash": hash_hex(args.benchmark_hash) if args.benchmark_hash else None}
+    values = fingerprints(args)
+    if values: result["model_fingerprints"] = values
+    return result
 
 
 def seed(args):
@@ -142,6 +154,8 @@ def build(args):
                 "Model or grader differs from seed")
         require(args.demo == seed_payload["run_metadata"]["demo"] and
                 (args.benchmark_hash or None) == seed_payload["run_metadata"]["benchmark_hash"], "Run labeling differs from seed")
+        require(fingerprints(args) == seed_payload["run_metadata"].get("model_fingerprints", {}),
+                "Model weights fingerprint differs from seed")
         run_id = seed_id = seed_payload["run_id"]
     suite = suite_hash(items, salted_suite)
     if args.seed_file:
@@ -149,9 +163,12 @@ def build(args):
     salts = [secrets.token_hex(32) for _ in items]
     levels = tree([leaf(item, salt, i) for i, (item, salt) in enumerate(zip(items, salts))])
     root = levels[-1][0].hex()
+    run_metadata = metadata(args)
+    if args.seed_file:
+        run_metadata["tool_version"] = seed_payload["run_metadata"]["tool_version"]
     payload = {"schema": SCHEMA, "kind": "settle", "run_id": run_id, "suite_hash": suite,
                "config_hash": config_hash, "models": total["models"], "graders": total["graders"],
-               "run_metadata": metadata(args), "root": root, "summary": total, "seed_id": seed_id}
+               "run_metadata": run_metadata, "root": root, "summary": total, "seed_id": seed_id}
     validate_payload(payload)
     out = output_dir(args, "receipt")
     with (out / "items.jsonl").open("xb") as f, (out / "proofs.jsonl").open("xb") as g:
@@ -166,6 +183,7 @@ def build(args):
     value = {"schema": SCHEMA, "payload": payload, "registry": base, "registration": None,
              "local": {"items_file": "items.jsonl", "proofs_file": "proofs.jsonl", "suite_salt": salted_suite,
                        "config_salt": config_salt, "model_override": args.model, "grader_override": args.grader}}
+    if fingerprints(args): value["local"]["model_fingerprints"] = fingerprints(args)
     path = out / "receipt.json"
     save_json(path, value)
     processing_seconds = time.perf_counter() - started
@@ -213,6 +231,8 @@ def verify_local(path, value):
     require(value["schema"] == SCHEMA, "Unsupported receipt")
     p, loc = value["payload"], value["local"]
     validate_payload(p)
+    require(loc.get("model_fingerprints", {}) == p["run_metadata"].get("model_fingerprints", {}),
+            "Local model weights fingerprint differs from receipt")
     items, hashes, ids = [], [], set()
     with local_child(path, loc["items_file"]).open() as f:
         for index, line in enumerate(f):
@@ -267,9 +287,14 @@ def verify(args):
             validate_payload(seed_payload, "seed")
             require(all(seed_payload[k] == value["payload"][k] for k in ("suite_hash", "models", "graders", "config_hash")),
                     "Pre-registration differs from settled run")
+            require(seed_payload["run_metadata"].get("model_fingerprints", {}) ==
+                    value["payload"]["run_metadata"].get("model_fingerprints", {}),
+                    "Pre-registration model weights fingerprint differs from settled run")
         require(current["entry_hash"] == reg["entry_hash"] and current["root"] == value["payload"]["root"] and
                 current["run_number"] == reg["run_number"] and current["series_id"] == reg["series_id"], "Registry identity mismatch")
         report["ledger"] = "pass"
+        if value["payload"]["run_metadata"].get("model_fingerprints"):
+            report["model_fingerprints"] = value["payload"]["run_metadata"]["model_fingerprints"]
         from .timestamp import verify_timestamp
         data = current["anchor"].get("proof_base64")
         require(data, "No timestamp proof yet; retry verification later")
@@ -326,6 +351,8 @@ def parser():
     s = sub.add_parser("login"); s.add_argument("url"); s.set_defaults(func=login)
     def opts(s):
         s.add_argument("--model"); s.add_argument("--grader"); s.add_argument("--config", help="Local JSON config, salted before commitment")
+        s.add_argument("--weights-fingerprint", action="append", metavar="MODEL=SHA256",
+                       help="Opt in to sharing a model weights fingerprint; repeat for each model")
         s.add_argument("--demo", action="store_true"); s.add_argument("--benchmark-hash"); s.add_argument("--out")
     s = sub.add_parser("eval"); s.add_argument("results"); opts(s)
     s.add_argument("--share-cost", action="store_true", help="Explicitly send USD cost total (per-item costs stay local)")
