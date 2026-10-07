@@ -1,0 +1,12 @@
+.venv/
+*.egg-info/
+__pycache__/
+build/
+dist/
+receipt-*/
+seed-*/
+*.ots
+*.sqlite*
+.env
+evidence/
+private/

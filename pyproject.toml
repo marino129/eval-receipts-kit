@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "creationloop-eval-receipts"
+version = "0.1.0"
+description = "Local salted eval commitments and an open receipt verifier"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+dependencies = ["opentimestamps==0.4.5"]
+
+[project.scripts]
+receipt = "eval_receipts.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,15 @@
+# Privacy and verification
+
+The CLI never uploads item content, identifiers, salts, per-item hashes, inclusion proofs, local filenames, config JSON or grader code. Salts are random secrets that defeat a dictionary search against low-entropy item commitments. Local bundles and revealed-item files must remain on the machine. The wire payload is explicitly constructed and checked against a closed field list; the private registry independently applies the same allowlist.
+
+Model/grader names and the allowed summary numbers are intentionally shared. Choose names that do not contain confidential information. Fixed run metadata and benchmark commitments are shared; free-form metadata is refused. Optional cost sharing is explicit. The receipt upload's privacy boundary is separate from inference: the public benchmark demo sends public questions to the authorized VeraCL gateway to obtain outputs before committing them.
+
+The aggregate is recomputed only by a verifier with the local items. A hash-only registry cannot check a client's private scores; it labels them declared. A receipt proves commitment, inclusion and time, not that a model executed, the grader was valid, the suite was representative or no other private runs occurred. Pre-registration makes an omitted seeded run visible as abandoned but cannot discover runs never registered.
+
+`receipt verify` checks the complete local bundle, its registry ledger entry and the timestamp proof. A pending proof gives a clearly reported pending timestamp; use `--require-confirmed` for the Bitcoin acceptance gate. `--offline` checks only the root/aggregate/proofs and clearly leaves ledger/time unchecked. `verify-item` is an inclusion check only. The registry host remains a trusted source for numbering and metadata; chain hashes detect edits relative to retained receipt hashes, while the Bitcoin timestamp independently binds the root. This v1 protocol does not claim a signed or externally timestamped ledger head for every entry.
+
+Bitcoin verification uses two independent HTTPS witnesses, Blockstream and mempool.space, for the main-chain block hash at the attested height, then checks the header hash, proof of work and OTS Merkle-root relation. This depends on witness honesty and TLS rather than a complete SPV header chain. For a stronger trust model, verify `root.bin.ots` with the official OpenTimestamps client and your own Bitcoin Core node. Confirmation takes calendar batching and Bitcoin mining time and is independent of local processing duration.
+
+Keep registry access private and authenticated. For multiple companies, deploy an isolated registry instance/key/state segment per company; this initial implementation does not provide shared-database multitenancy. Token files use mode 600 on POSIX. Rotate a registry token by replacing the operator's private key file and restarting; that also invalidates browser sessions. No tokens are embedded in receipt URLs or Git history.
+
+Report issues privately to the repository maintainer. Never attach real local bundles or credentials to a public issue. Public sample inputs in `examples/` are synthetic demonstrations.
