@@ -11,6 +11,8 @@ from .core import InvalidReceipt, hash_hex, require
 from .transport import request
 
 CALENDARS = ("https://a.pool.opentimestamps.org", "https://b.pool.opentimestamps.org")
+ALLOWED_CALENDARS = CALENDARS + ("https://alice.btc.calendar.opentimestamps.org",
+                                "https://bob.btc.calendar.opentimestamps.org")
 WITNESSES = ("https://blockstream.info/api", "https://mempool.space/api")
 
 
@@ -64,7 +66,7 @@ def upgrade_root(data, root):
             yield from walk(child)
     for ts in list(walk(proof.timestamp)):
         for att in list(ts.attestations):
-            if type(att) is PendingAttestation and att.uri in CALENDARS:
+            if type(att) is PendingAttestation and att.uri in ALLOWED_CALENDARS:
                 try:
                     ts.merge(RemoteCalendar(att.uri).get_timestamp(ts.msg, timeout=10))
                 except Exception:
@@ -78,7 +80,7 @@ def verify_timestamp(data, root, allow_network=True):
     attestations = list(proof.timestamp.all_attestations())
     bitcoin = [(msg, att) for msg, att in attestations if type(att) is BitcoinBlockHeaderAttestation]
     if not bitcoin:
-        require(any(type(att) is PendingAttestation and att.uri in CALENDARS for _, att in attestations),
+        require(any(type(att) is PendingAttestation and att.uri in ALLOWED_CALENDARS for _, att in attestations),
                 "Timestamp has no recognized attestation")
         return {"status": "pending", "binding_verified": True, "bitcoin_verified": False}
     require(allow_network, "Bitcoin confirmation requires independent header verification; use online verify")

@@ -149,6 +149,12 @@ class TimestampBinding(unittest.TestCase):
     def test_pending_never_claims_bitcoin_confirmation(self):
         root,p=self.proof();r=verify_timestamp(serialize(p),root,False)
         self.assertEqual(r['status'],'pending');self.assertFalse(r['bitcoin_verified'])
+    def test_official_pool_response_calendar_aliases(self):
+        from opentimestamps.core.notary import PendingAttestation
+        root,p=self.proof();p.timestamp.attestations.clear()
+        p.timestamp.attestations.add(PendingAttestation('https://alice.btc.calendar.opentimestamps.org'))
+        p.timestamp.attestations.add(PendingAttestation('https://bob.btc.calendar.opentimestamps.org'))
+        self.assertEqual(verify_timestamp(serialize(p),root,False)['status'],'pending')
     def test_changed_root_and_trailing_proof_rejected(self):
         root,p=self.proof()
         with self.assertRaises(core.InvalidReceipt):deserialize(serialize(p),'cd'*32)
