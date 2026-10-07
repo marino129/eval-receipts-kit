@@ -33,4 +33,4 @@ The first command checks the local root and aggregate, the private ledger entry 
 
 Optional pre-registration: `receipt seed --suite suite.jsonl --model NAME --grader NAME --out seed-1`, then `receipt eval results.jsonl --seed-file seed-1/seed.json --model NAME --grader NAME`. Suites need only id and input. Pass the same local JSON `--config FILE` to both commands. Unsettled seeds expire after 24 hours and remain visible as abandoned. Repeated suite/model runs from this installation retain a stable salted suite commitment and receive increasing run numbers.
 
-Release status: v0.1.0 is staged for Marino's approval. The public install URL above becomes usable only after that approval. During private review, install the supplied `creationloop_eval_receipts-0.1.0-py3-none-any.whl` with the same pip command instead of the Git URL. The private network and registry key are prerequisites, not part of the open-source package.
+You can also install the wheel from the [v0.1.0 release](https://github.com/marino129/eval-receipts-kit/releases/tag/v0.1.0). The private network and registry key are prerequisites, supplied by your eval team's operator.

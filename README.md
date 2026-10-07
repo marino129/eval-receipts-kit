@@ -33,4 +33,4 @@ python3 -m venv .venv
 .venv/bin/python -m unittest discover -s tests -v
 ```
 
-Supported platforms: Python 3.10+ on Linux and macOS. The Windows console works through `python -m eval_receipts`; private-file permissions must be enforced by the user's Windows account/ACL configuration. Public release requires Marino's approval of the exact staged commit and package. No release has been approved by this README.
+Supported platforms: Python 3.10+ on Linux and macOS. The Windows console works through `python -m eval_receipts`; private-file permissions must be enforced by the user's Windows account/ACL configuration. See the [v0.1.0 release](https://github.com/marino129/eval-receipts-kit/releases/tag/v0.1.0) for the installable wheel and source archive.
