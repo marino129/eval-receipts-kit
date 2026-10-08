@@ -6,7 +6,7 @@ Use Python 3.10 or newer. Get the registry URL and key from your eval team's ope
 
 ```sh
 python3 -m venv .receipt-env
-.receipt-env/bin/python -m pip install "https://github.com/marino129/eval-receipts-kit/releases/download/v0.1.1/creationloop_eval_receipts-0.1.1-py3-none-any.whl"
+.receipt-env/bin/python -m pip install "https://github.com/marino129/eval-receipts-kit/releases/download/v0.1.2/creationloop_eval_receipts-0.1.2-py3-none-any.whl"
 .receipt-env/bin/receipt login PRIVATE_REGISTRY_URL
 ```
 
@@ -35,4 +35,4 @@ Optional pre-registration: `receipt seed --suite suite.jsonl --model NAME --grad
 
 Optional weights identity: add `--weights-fingerprint MODEL=SHA256` to both seed and eval. The fingerprint is visible on the private receipt and checked against its ledger entry. Only the fingerprint is shared.
 
-Install the wheel above without Git, or use the source at tag `v0.1.1`. Release files and checksums are on the [v0.1.1 release](https://github.com/marino129/eval-receipts-kit/releases/tag/v0.1.1). The registry URL and key are prerequisites, supplied by your eval team's operator. Version 0.1.1 also verifies unchanged 0.1.0 receipts.
+Install the wheel above without Git, or use the source at tag `v0.1.2`. Release files and checksums are on the [v0.1.2 release](https://github.com/marino129/eval-receipts-kit/releases/tag/v0.1.2). The registry URL and key are prerequisites, supplied by your eval team's operator. Version 0.1.2 also verifies unchanged 0.1.0 and 0.1.1 receipts.
