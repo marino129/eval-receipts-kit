@@ -51,7 +51,7 @@ def decimal_text(value, nonnegative=False):
         d = Decimal(str(value))
     except InvalidOperation:
         raise InvalidReceipt("Invalid decimal number") from None
-    require(d.is_finite() and abs(d) <= Decimal("1e18") and d.as_tuple().exponent >= -12,
+    require(d.is_finite() and d.copy_abs() <= Decimal("1e18") and d.as_tuple().exponent >= -12,
             "Number must be finite, <= 1e18, and have <= 12 decimal places")
     require(not nonnegative or d >= 0, "Cost must be nonnegative")
     if d == 0:
@@ -246,7 +246,7 @@ def validate_summary(s):
             d = Decimal(s[k])
         except InvalidOperation:
             raise InvalidReceipt("Invalid summary number") from None
-        require(d.is_finite() and abs(d) <= Decimal("1e24") and d.as_tuple().exponent >= -12,
+        require(d.is_finite() and d.copy_abs() <= Decimal("1e24") and d.as_tuple().exponent >= -12,
                 "Invalid summary number")
         require(k != "cost_total_usd" or d >= 0, "Negative cost")
     with localcontext() as ctx:
@@ -278,10 +278,10 @@ def validate_payload(p, kind="settle"):
     require(isinstance(m, dict) and (set(m) == fields or set(m) == fields | {"model_fingerprints"}),
             "Run metadata accepts only timestamp, demo, tool version, benchmark hash and model fingerprints")
     parse_time(m["created_at"])
-    require(type(m["demo"]) is bool and m["tool_version"] in ("0.1.0", "0.1.1"), "Invalid run metadata")
+    require(type(m["demo"]) is bool and m["tool_version"] in ("0.1.0", "0.1.1", "0.1.2"), "Invalid run metadata")
     if m["benchmark_hash"] is not None: hash_hex(m["benchmark_hash"])
     if "model_fingerprints" in m:
-        require(m["tool_version"] == "0.1.1", "Model fingerprints require tool version 0.1.1")
+        require(m["tool_version"] in ("0.1.1", "0.1.2"), "Model fingerprints require tool version 0.1.1 or 0.1.2")
         fingerprints = m["model_fingerprints"]
         require(isinstance(fingerprints, dict) and 0 < len(fingerprints) <= len(p["models"]) and
                 set(fingerprints) <= set(p["models"]), "Fingerprints must name models in this run")

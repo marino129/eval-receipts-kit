@@ -1,4 +1,5 @@
 import copy
+from decimal import localcontext
 import hashlib
 import json
 import os
@@ -54,6 +55,45 @@ class Commitments(unittest.TestCase):
             with self.assertRaises(core.InvalidReceipt):core.strict_json(data)
         with self.assertRaises(core.InvalidReceipt):core.item_record(dict(self.items[0],customer_data='secret'),0)
         with self.assertRaises(core.InvalidReceipt):core.tree([])
+    def test_exact_item_score_and_cost_bounds_reject_rounding_and_overflow(self):
+        for field in ('score', 'cost'):
+            for value in ('1000000000000000000.000000000001', '-1000000000000000000.000000000001',
+                          '1e1000000', '-1e1000000'):
+                with self.subTest(field=field, value=value):
+                    with self.assertRaises(core.InvalidReceipt):
+                        core.item_record(dict(self.items[0], **{field: value}), 0)
+    def test_numeric_bounds_do_not_depend_on_decimal_context(self):
+        with localcontext() as context:
+            context.prec = 7
+            context.Emax = 10
+            self.assertEqual(core.decimal_text('1000000000000000000'), '1000000000000000000')
+            self.assertEqual(core.decimal_text('999999999999999999.999999999999'),
+                             '999999999999999999.999999999999')
+            for value in ('1000000000000000000.000000000001', '1e1000000'):
+                with self.assertRaises(core.InvalidReceipt): core.decimal_text(value)
+    def test_valid_v011_decimal_encodings_and_merkle_root_are_unchanged(self):
+        values = ['0', '-0.000000000000', '0.1000', '1.000000000000',
+                  '-1000000000000000000', '1000000000000000000',
+                  '999999999999999999.999999999999']
+        expected = ['0', '0', '0.1', '1', '-1000000000000000000', '1000000000000000000',
+                    '999999999999999999.999999999999']
+        self.assertEqual([core.decimal_text(value) for value in values], expected)
+        items = [core.item_record({'id': str(i), 'input': 'synthetic', 'output': 'control',
+                                  'score': value, 'model': 'demo', 'grader': 'numeric-control'}, i)
+                 for i, value in enumerate(values)]
+        root = core.tree([core.leaf(item, format(i, '064x'), i) for i, item in enumerate(items)])[-1][0].hex()
+        self.assertEqual(root, '3dad3627eaa422026ab3579ad797bd0c3ff64061648d02e85489fbc6d4071243')
+    def test_summary_numeric_bounds_reject_exact_over_limit_and_extreme_exponents(self):
+        original = core.summary([dict(self.items[0], cost='0.1')], share_cost=True)
+        for field in ('score_sum', 'aggregate_score', 'cost_total_usd'):
+            for value in ('1000000000000000000000000.000000000001',
+                          '-1000000000000000000000000.000000000001', '1e1000000', '-1e1000000'):
+                with self.subTest(field=field, value=value):
+                    with self.assertRaises(core.InvalidReceipt):
+                        core.validate_summary(dict(original, **{field: value}))
+        boundary = dict(original, item_count=1000000, score_sum='1000000000000000000000000',
+                        aggregate_score='1000000000000000000', cost_total_usd='1000000000000000000000000')
+        self.assertEqual(core.validate_summary(boundary), boundary)
     def test_suite_binds_order_inputs_and_ids(self):
         a=core.suite_hash(self.items,'00'*32)
         self.assertEqual(a,core.suite_hash([dict(v,output='new',score='1') for v in self.items],'00'*32))
@@ -102,6 +142,21 @@ class LocalCLI(unittest.TestCase):
         records[0]['item']['score']='0'
         (receipt.parent/'items.jsonl').write_text(''.join(json.dumps(v)+'\n' for v in records))
         self.assertEqual(self.cli('verify',str(receipt),'--offline').returncode,1)
+    def test_extreme_exponents_fail_cli_with_domain_error_and_no_traceback(self):
+        for field in ('score', 'cost'):
+            with self.subTest(field=field):
+                self.file.write_text(json.dumps(dict(self.rows[0], **{field: '1e1000000'}))+'\n')
+                result = self.cli('eval', str(self.file), '--offline')
+                self.assertEqual(result.returncode, 1)
+                self.assertNotIn('Traceback', result.stderr)
+        self.file.write_text(''.join(json.dumps(value)+'\n' for value in self.rows))
+        receipt = self.build()
+        value = json.loads(receipt.read_text())
+        value['payload']['summary']['score_sum'] = '1e1000000'
+        receipt.write_text(json.dumps(value))
+        result = self.cli('verify', str(receipt), '--offline')
+        self.assertEqual(result.returncode, 1)
+        self.assertNotIn('Traceback', result.stderr)
     def test_proof_tamper_rejected(self):
         receipt=self.build();p=receipt.parent/'proofs.jsonl';r=[json.loads(l) for l in p.read_text().splitlines()]
         r[0]['siblings'][0]['hash']='ff'*32;p.write_text(''.join(json.dumps(v)+'\n' for v in r))
